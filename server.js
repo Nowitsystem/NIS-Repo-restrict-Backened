@@ -42,6 +42,7 @@ app.post("/api/summarize", async (req, res) => {
     }
 
     const response = await openai.chat.completions.create({
+      // model: "gpt-4o", // 🔥 updated
       model: "gpt-4o-mini", // 🔥 updated
       messages: [
         {

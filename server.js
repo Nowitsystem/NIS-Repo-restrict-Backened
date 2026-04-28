@@ -6,14 +6,14 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 import speechRoutes from "./src/modules/speech/speech.routes.js";
 import { fileURLToPath } from "url";
+
 dotenv.config();
-console.log("API KEY:", process.env.OPENAI_API_KEY);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Fix __dirname (ESM doesn't support it directly)
+// Fix __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,45 +22,58 @@ app.use("/api/speech", speechRoutes);
 const PORT = 3001;
 const DB_FILE = path.join(__dirname, "meetings.json");
 
-// Initialize local JSON DB
+// Init DB
 if (!fs.existsSync(DB_FILE)) {
   fs.writeFileSync(DB_FILE, JSON.stringify([]));
 }
 
-// OpenAI setup
+// OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Updated model (important)
+// 🔥 UPDATED SUMMARIZE / RESPONSE API
 app.post("/api/summarize", async (req, res) => {
   try {
-    const { transcript } = req.body;
+    const { transcript, mode } = req.body;
 
     if (!transcript) {
       return res.status(400).json({ error: "Transcript is required" });
     }
 
+    // 🔥 Dynamic instruction based on mode
+    let instruction = "";
+
+    if (mode === "short") {
+      instruction = "Give a very short and clear answer in 1-2 lines.";
+    } else if (mode === "bullet") {
+      instruction = "Answer in clear bullet points.";
+    } else {
+      instruction = "Give a detailed explanation.";
+    }
+
     const response = await openai.chat.completions.create({
-      // model: "gpt-4o", // 🔥 updated
-      model: "gpt-4o-mini", // 🔥 updated
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "You are an AI meeting assistant. Generate:\n1. Key points\n2. Summary\n3. Action items\n4. Important decisions\nKeep concise, Markdown format.",
+            "You are a real-time AI assistant. Answer clearly and directly. Do not act like a meeting summarizer unless explicitly asked.",
         },
         {
           role: "user",
-          content: transcript,
+          content: `${instruction}\n\nUser said: ${transcript}`,
         },
       ],
     });
 
-    res.json({ result: response.choices[0].message.content });
+    const answer = response.choices[0].message.content;
+
+    res.json({ result: answer });
+
   } catch (error) {
     console.error("OpenAI Error:", error);
-    res.status(500).json({ error: "Failed to generate summary." });
+    res.status(500).json({ error: "Failed to generate response." });
   }
 });
 

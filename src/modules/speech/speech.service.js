@@ -61,6 +61,8 @@ export const transcribeAudio = async (filePath) => {
     const response = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioFilePath),
       model: "whisper-1",
+      language: "en",
+      prompt: "Transcribe speech strictly in English.",
     });
 
     console.log("OpenAI response received ✅");
